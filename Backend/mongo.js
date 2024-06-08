@@ -14,16 +14,16 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        unique: true, // Ensure uniqueness of email addresses
+        unique: true,
     },
     password: {
         type: String,
         required: true,
     },
     userId: { type: String, required: true, unique: true },
+
 });
 
-// Create model from schema
 const User = mongoose.model("User", userSchema);
 
 // Export model

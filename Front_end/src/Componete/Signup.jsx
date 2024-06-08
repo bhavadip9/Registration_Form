@@ -9,6 +9,9 @@ const Signup = () => {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const history = useNavigate();
+    const loginwithgoogle = () => {
+        window.open("http://localhost:8000/auth/google/callback", "_self")
+    }
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -32,6 +35,7 @@ const Signup = () => {
                     history("/home", { state: { id: email } });
                 }
             })
+
             .catch((error) => {
                 setError("Error: Unable to process request");
                 console.error(error);
@@ -72,7 +76,12 @@ const Signup = () => {
             </form>
             {error && <p>{error}</p>}
             <br />
+            <button className='login-with-google-btn' onClick={loginwithgoogle}>
+                Sign In With Google
+            </button>
+            <br />
             <p>Or</p>
+            <br />
             <br />
 
             <Link to="/">Login Page</Link>

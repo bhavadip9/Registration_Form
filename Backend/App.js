@@ -1,22 +1,72 @@
 const express = require("express");
 const Collections = require("./mongo");
+const Google = require("./googleschema")
+//const Tokens = require("./Token");
 const cors = require("cors");
 const app = express();
 const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 const nodemailer = require("nodemailer");
+const passport = require("passport");
+const session = require("express-session");
+const OAuth2Strategy = require("passport-google-oauth2").Strategy;
 
+const clientId = "1015432761670-fc3dv7bkhsl28nqfha2t8ah81q4ehgca.apps.googleusercontent.com";
+const clientsecret = "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";
+
+app.use(cors())
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+//app.use(cors({ origin: "http://localhost:5173/" }));
+app.use(session({
+    secret: "7046590933bhavadip",
+    resave: false,
+    saveUninitialized: true
+}))
+app.use(passport.initialize());
+app.use(passport.session())
 
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: "your-email@gmail.com",
-        pass: "your-gmail-password",
-    },
+passport.use(new OAuth2Strategy({
+    clientID: clientId,
+    clientSecret: clientsecret,
+    callbackURL: "/auth/google/callback",
+    scope: ["profile", "email"]
+}, async (accessToken, refreshToken, profile, done) => {
+    console.log("profile", profile);
+    try {
+        let user = await Google.findOne({ googleId: profile.id });
+
+        if (!user) {
+            user = new Google({
+                googleId: profile.id,
+                displayName: profile.displayName,
+                email: profile.emails[0].value,
+                image: profile.photos[0].value
+            });
+
+            await user.save();
+        }
+
+        return done(null, user)
+    } catch (error) {
+        return done(error, null)
+    }
+}))
+
+passport.serializeUser((user, done) => {
+    done(null, user);
+})
+
+passport.deserializeUser((user, done) => {
+    done(null, user);
 });
+
+app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+
+app.get("/auth/google/callback", passport.authenticate("google", {
+    successRedirect: "http://localhost:5173/home",
+    failureRedirect: "http://localhost:5173/"
+}))
 
 // Function to generate unique 8-character alphanumeric ID
 function generateUniqueId() {
@@ -32,20 +82,53 @@ async function generateUniqueUserId() {
     return userId;
 }
 
-// Function to send confirmation email
+
 async function sendConfirmationEmail(email, userId) {
     try {
+        let transporter = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+                user: "paliwalbhai503@gmail.com",
+                pass: "bhai@2004",
+            }
+        })
         await transporter.sendMail({
             from: "paliwalbhai503@gmail.com", // Your Gmail email address
             to: email,
             subject: "Account Confirmation",
-            html: `<p>Your user ID is: ${userId}</p>`,
+            html: `<p>Your user ID is: ${userId} Click me</p>`,
         });
         console.log("Confirmation email sent to:", email);
     } catch (error) {
         console.error("Error sending confirmation email:", error);
     }
 }
+
+
+//For the login page
+app.post("/", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const user = await Collections.findOne({ email });
+        const googleuser = await Google.findOne({ email });
+        if (!user && !googleuser) {
+            return res.json("notexist");
+        }
+        // Check if the provided password matches the hashed password in the database
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return res.json("notexist");
+        }
+        // If both email and password are correct, respond with "exist"
+        console.log("Email and password are correct");
+        res.json("exist");
+    } catch (error) {
+        // Handle any errors that occur during the database operation
+        console.error("Error:", error);
+        res.status(500).json("Error occurred");
+    }
+});
 
 app.post("/signup", async (req, res) => {
     try {
@@ -66,36 +149,6 @@ app.post("/signup", async (req, res) => {
         console.log("User registered successfully");
         res.json("notexist");
     } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json("Error occurred");
-    }
-});
-
-
-app.post("/", async (req, res) => {
-    const { email, password } = req.body;
-    try {
-        // Check if user exists with the provided email
-        const user = await Collections.findOne({ email });
-
-        // If user does not exist, respond with "notexist"
-        if (!user) {
-            return res.json("notexist");
-        }
-
-        // Check if the provided password matches the hashed password in the database
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        // If password is not valid, respond with "notexist"
-        if (!isPasswordValid) {
-            return res.json("notexist");
-        }
-
-        // If both email and password are correct, respond with "exist"
-        console.log("Email and password are correct");
-        res.json("exist");
-    } catch (error) {
-        // Handle any errors that occur during the database operation
         console.error("Error:", error);
         res.status(500).json("Error occurred");
     }

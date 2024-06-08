@@ -8,6 +8,9 @@ const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const loginwithgoogle = () => {
+        window.open("http://localhost:8000/auth/google/callback", "_self")
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -16,38 +19,21 @@ const Login = () => {
             setError("Please enter your email and password");
             return;
         }
-
-        axios
-            .post("http://localhost:8000/signup", {
+        try {
+            const res = await axios.post("http://localhost:8000/signup", {
                 email,
                 password,
-            })
-            .then((res) => {
-                if (res.data === "exist") {
-                    history("/home", { state: { id: email } });
-                } else if (res.data === "notexist") {
-                    setError("User does not exist. Please create an account.");
-                }
-            })
-            .catch((error) => {
-                setError("Error: Unable to process request");
-                console.error(error);
             });
-        // try {
-        //   const res = await axios.post("http://localhost:8000/", {
-        //     email,
-        //     password,
-        //   });
 
-        //   if (res.data === "exist") {
-        //     history("/home", { state: { id: email } });
-        //   } else if (res.data === "not exist") {
-        //     setError("User does not exist. Please create an account.");
-        //   }
-        // } catch (error) {
-        //   setError("Error: Unable to process request");
-        //   console.error(error);
-        // }
+            if (res.data === "exist") {
+                history("/home", { state: { id: email } });
+            } else if (res.data === "notexist") {
+                setError("User does not exist. Please create an account.");
+            }
+        } catch (error) {
+            setError("Error: Unable to process request");
+            console.error(error);
+        }
     };
 
     return (
@@ -82,9 +68,15 @@ const Login = () => {
 
                 <input type="submit" name="submit" value="Login" className="btn" />
             </form>
+            <br />
             {error && <p>{error}</p>}
             <br />
             <p>Or</p>
+
+            <button className='login-with-google-btn' onClick={loginwithgoogle}>
+                Sign In With Google
+            </button>
+            <br />
             <br />
             <Link to="/signup">Signup Page</Link>
         </div>
@@ -92,3 +84,4 @@ const Login = () => {
 };
 
 export default Login;
+
